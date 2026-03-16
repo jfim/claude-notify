@@ -46,7 +46,23 @@ Do NOT use it for routine intermediate steps. Only notify when the user would wa
 Usage: `claude-notify -t "Title" "message"`
 ```
 
-### 4. Subscribe to notifications
+### 4. Allow the tool without prompting
+
+Add to `~/.claude/settings.json`:
+
+```json
+{
+  "permissions": {
+    "allow": [
+      "Bash(claude-notify *)"
+    ]
+  }
+}
+```
+
+This lets Claude run `claude-notify` without asking for permission each time.
+
+### 5. Subscribe to notifications
 
 Install the [ntfy app](https://ntfy.sh) on your phone or desktop and subscribe to your topic.
 

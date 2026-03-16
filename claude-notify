@@ -8,11 +8,29 @@ server="https://ntfy.sh"
 topic=""
 token=""
 
+# Trim leading/trailing whitespace (pure bash, no xargs)
+trim() {
+    local s="$1"
+    s="${s#"${s%%[![:space:]]*}"}"
+    s="${s%"${s##*[![:space:]]}"}"
+    printf '%s' "$s"
+}
+
 # Read config
 if [[ -f "$CONFIG_FILE" ]]; then
+    # Warn if config file is readable by others
+    if stat -c '%a' "$CONFIG_FILE" &>/dev/null; then
+        perms=$(stat -c '%a' "$CONFIG_FILE")
+    else
+        perms=$(stat -f '%Lp' "$CONFIG_FILE")
+    fi
+    if [[ "$perms" =~ [0-7][^0][0-7]|[0-7][0-7][^0] ]]; then
+        echo "Warning: $CONFIG_FILE is readable by others. Run: chmod 600 $CONFIG_FILE" >&2
+    fi
+
     while IFS='=' read -r key value; do
-        key=$(echo "$key" | xargs)
-        value=$(echo "$value" | xargs)
+        key=$(trim "$key")
+        value=$(trim "$value")
         [[ -z "$key" || "$key" == \#* ]] && continue
         case "$key" in
             server) server="$value" ;;
@@ -47,7 +65,9 @@ while [[ $# -gt 0 ]]; do
             exit 0
             ;;
         -t|--title)
-            title="$2"
+            title="${2:?Error: -t requires a value}"
+            title="${title//$'\r'/}"
+            title="${title//$'\n'/ }"
             shift 2
             ;;
         --)
@@ -73,18 +93,18 @@ fi
 # Build curl args
 curl_args=(-s -o /dev/null -w "%{http_code}")
 
-if [[ -n "$token" ]]; then
-    curl_args+=(-H "Authorization: Bearer $token")
-fi
-
 if [[ -n "$title" ]]; then
     curl_args+=(-H "Title: $title")
 fi
 
 curl_args+=(-d "$message" "$server/$topic")
 
-# Send notification
-http_code=$(curl "${curl_args[@]}")
+# Send notification, passing auth header via stdin to avoid token in process list
+if [[ -n "$token" ]]; then
+    http_code=$(curl -H @- "${curl_args[@]}" <<< "Authorization: Bearer $token")
+else
+    http_code=$(curl "${curl_args[@]}")
+fi
 
 if [[ "$http_code" -ge 200 && "$http_code" -lt 300 ]]; then
     echo "Notification sent."

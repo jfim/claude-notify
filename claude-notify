@@ -35,6 +35,17 @@ fi
 title=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        -h|--help)
+            echo "Usage: claude-notify [-t title] <message>"
+            echo "Send push notifications via ntfy.sh."
+            echo ""
+            echo "Options:"
+            echo "  -t, --title    Set the notification title"
+            echo "  -h, --help     Show this help message"
+            echo ""
+            echo "Config: ~/.claude-notify (server, topic, token)"
+            exit 0
+            ;;
         -t|--title)
             title="$2"
             shift 2

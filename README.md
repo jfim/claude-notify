@@ -86,3 +86,11 @@ echo "Refactor complete — 12 files changed, ready for your review" | claude-no
 
 - bash
 - curl
+
+## Disclaimer
+
+This is a personal project and is not affiliated with, endorsed by, or supported by Anthropic. Claude Code is a product of Anthropic, but this tool is an independent community project.
+
+## License
+
+MIT

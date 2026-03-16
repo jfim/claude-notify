@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CONFIG_FILE="$HOME/.claude-notify"
+
+# Defaults
+server="https://ntfy.sh"
+topic=""
+token=""
+
+# Read config
+if [[ -f "$CONFIG_FILE" ]]; then
+    while IFS='=' read -r key value; do
+        key=$(echo "$key" | xargs)
+        value=$(echo "$value" | xargs)
+        [[ -z "$key" || "$key" == \#* ]] && continue
+        case "$key" in
+            server) server="$value" ;;
+            topic)  topic="$value" ;;
+            token)  token="$value" ;;
+        esac
+    done < "$CONFIG_FILE"
+else
+    echo "Error: Config file not found at $CONFIG_FILE" >&2
+    echo "Create it with at least: topic=<your-topic>" >&2
+    exit 1
+fi
+
+if [[ -z "$topic" ]]; then
+    echo "Error: 'topic' not set in $CONFIG_FILE" >&2
+    exit 1
+fi
+
+# Parse arguments
+title=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -t|--title)
+            title="$2"
+            shift 2
+            ;;
+        --)
+            shift
+            break
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+# Message from args or stdin
+if [[ $# -gt 0 ]]; then
+    message="$*"
+elif [[ ! -t 0 ]]; then
+    message=$(cat)
+else
+    echo "Usage: claude-notify [-t title] <message>" >&2
+    exit 1
+fi
+
+# Build curl args
+curl_args=(-s -o /dev/null -w "%{http_code}")
+
+if [[ -n "$token" ]]; then
+    curl_args+=(-H "Authorization: Bearer $token")
+fi
+
+if [[ -n "$title" ]]; then
+    curl_args+=(-H "Title: $title")
+fi
+
+curl_args+=(-d "$message" "$server/$topic")
+
+# Send notification
+http_code=$(curl "${curl_args[@]}")
+
+if [[ "$http_code" -ge 200 && "$http_code" -lt 300 ]]; then
+    echo "Notification sent."
+else
+    echo "Error: server returned HTTP $http_code" >&2
+    exit 1
+fi
